@@ -3,57 +3,83 @@ import Matter from "matter-js";
 import MatterWrap from "matter-wrap";
 
 //These bad boys revolve around the code
-let domlist       = [];
-let queue         = [];
-let layers        = [];
-let n             = 0;
-let layernm       = 0;
-let selectinglvl  = 0;
-let unsdom        = [];
-let mttrrunning   = 0;
-let loadedmttr    = 0;
-let phyDom        = [];
+let domlist     = [];
+let queue       = [];
+let layers      = [];
+let prntEls	= [];
+let plHlEls	= [];
+let n           = 0;
+let layernm     = 0;
+let selectinglvl= 0;
+let unsdom      = [];
+let mttrrunning = 0;
+let loadedmttr  = 0;
+let phyDom      = [];
 let mttrEls     = [];
 let mvDomID;
 let engine, runner, render, mvDomId;
 let phbase;
+let checked = 0;
+
+
 function isBnd(DOMS,j){
 	console.log("checking");
 	let bounds = DOMS[j].getBoundingClientRect();
 	for(let i = 0; i < DOMS.length; i++){
 		let tarbound = DOMS[i].getBoundingClientRect();
 		if (tarbound.x > bounds.x && tarbound.y > bounds.y && tarbound.x < bounds.x+bounds.width && tarbound.y < bounds.y+bounds.height){
-			console.log(`(${tarbound.x},${tarbound.y}) is around (${bounds.x},${bounds.y})x(${bounds.x+bounds.width}, ${bounds.y+bounds.height})`);
 			return true;
 		}
 	}
 	return false;
 }
 
-function elPhy() {
-  	let phyBase = document.createElement("div");
-  	phyBase.style = "position:fixed; top:0; left:0; pointer-events:none; z-index: 99999999;";
-  	unsdom.forEach((element) => {
-    		let rect = element.getBoundingClientRect();
-		let phyEl = element.cloneNode(true);
-    		Object.assign(phyEl.style, {
-      			position: "fixed",
-      			margin: "0",
-      			top: "0",
-      			left: "0",
-      			width: `${rect.width}px`,
-      			height: `${rect.height}px`,
-      			transformOrigin: "center center",
 
-    		});
-    		phyBase.appendChild(phyEl);
-    		phyDom.push(phyEl);
-  	});
-	phbase = phyBase;
-  	document.body.appendChild(phyBase);
+function rtrnEls(){
+	phyDom.forEach((element) => {
+	    const placeholder = element._placeholder;
+		if (placeholder && placeholder.parentNode) {
+			element.style = "";
+	      		placeholder.replaceWith(element);
+		}
+	});
 }
 
 
+function elPhy() {
+	let phyBase = document.createElement("div");
+	phyBase.style = "position:fixed; top:0; left:0; width:100vw; height:100vh; pointer-events:none; z-index: 999999;";
+  	document.body.appendChild(phyBase);
+
+  	unsdom.forEach((element) => {
+    		let rect = element.getBoundingClientRect();
+		let plHlEl = element.cloneNode(true);
+
+	    	Object.assign(plHlEl.style, {
+      			visibility: "hidden", 
+      			width: `${rect.width}px`,
+      			height: `${rect.height}px`,
+      			margin: getComputedStyle(element).margin,
+		});
+	    	element.replaceWith(plHlEl);
+	
+	
+	    	Object.assign(element.style, {
+	      		position: "fixed",
+	      		margin: "0",
+	      		top: `0px`, 
+	      		left: `0px`,
+	      		width: `${rect.width}px`,
+	      		height: `${rect.height}px`,
+	      		zIndex: "1000",
+	      		transformOrigin: "center center",
+		});
+
+ 	   	phyBase.appendChild(element);
+ 	   	element._placeholder = plHlEl;
+ 	   	phyDom.push(element);
+  	});
+}
 
 //Matter.js stuffs
 function crtmatter(DOMS){
@@ -87,7 +113,6 @@ function crtmatter(DOMS){
     const ground = Bodies.rectangle(window.innerWidth / 2, window.innerHeight + 25, window.innerWidth + 600, 60, { isStatic: true });
     Composite.add(world, [ground]);
 
-    elPhy();
 
     for (let i = 0; i < DOMS.length; i++) {
         let bounds = DOMS[i].getBoundingClientRect();
@@ -103,10 +128,10 @@ function crtmatter(DOMS){
         mttrEls.push(dombox);
         Composite.add(world, [dombox]);
     }
-
-    for (let i = 0; i < DOMS.length; i++) {
-        DOMS[i].style.opacity = 0;
-    }
+	elPhy();
+//    for (let i = 0; i < DOMS.length; i++) {
+//        DOMS[i].style.opacity = 0;
+//    }
 
     var mouse = Mouse.create(render.canvas),
         mouseConstraint = MouseConstraint.create(engine, {
@@ -142,7 +167,7 @@ document.addEventListener("keydown", (event) => {
         if (mttrrunning === 1) {
             cancelAnimationFrame(mvDomId);
             mttrrunning = 0;
-
+	    rtrnEls();
             if (runner) Matter.Runner.stop(runner);
             if (render) {
                 Matter.Render.stop(render);
@@ -153,14 +178,15 @@ document.addEventListener("keydown", (event) => {
                 Matter.World.clear(engine.world);
                 Matter.Engine.clear(engine);
             }
-
+	    
             document.querySelector("#mttrcvs")?.remove();
             document.querySelector("#phyBaseWrapper")?.remove();
-            phbase.remove();
-            unsdom.forEach(el => el.style.opacity = "");
+            //unsdom.forEach(el => el.style.opacity = "");
             
             phyDom = [];
             mttrEls = [];
+	    prntEls = [];
+	    plHlEls = [];
             console.log("Cleanup complete.");
         }
     }
@@ -192,44 +218,54 @@ function levelselector(){
 	let middlelayer = (layers.length*0.5) | 0;
 
 	//CREATING ELEMENTS
+	let labquick	= document.createElement('lable');
+	let Break	= document.createElement('br');
 	let lcanvas     = document.createElement('canvas');
 	let thing       = document.createElement('div');
 	let sliderbase  = document.createElement('div');
 	let slider      = document.createElement('input');
-	let cancelbutt  = document.createElement('button');//heh heh cancel buttocks
+	let cancelbutt  = document.createElement('button');	
 	let unscbutt    = document.createElement('button');
 	let mttrcvs	= document.createElement('div');
 	let buttonarea	= document.createElement('div');
 	let progressbar = document.createElement('progress');
+	let svquick	= document.createElement('input');
 
 	//CREATING ATTIBUTES
-  let sltype      = document.createAttribute("type");
-  let id          = document.createAttribute("id");
-  let canheight   = document.createAttribute("height");
-  let canwidth    = document.createAttribute("width");
-  let attr        = document.createAttribute("style");
-  let mttrpos	= document.createAttribute("style");
+ 	let sltype      = document.createAttribute("type");
+  	let id          = document.createAttribute("id");
+  	let canheight   = document.createAttribute("height");
+  	let canwidth    = document.createAttribute("width");
+  	let attr        = document.createAttribute("style");
+  	let mttrpos	= document.createAttribute("style");
 	let mttrid 	= document.createAttribute("id");
 	let ubuttstyle	= document.createAttribute("style");
 	let cbuttstyle	= document.createAttribute("style");
 	let prgmax	= document.createAttribute("max");
 	let prgval	= document.createAttribute("value");
-
+	let svtype	= document.createAttribute("type");
+	//let pquickstyle	= document.createAttribute("style");
+	
 	//Setting the resolution
  	canheight.value = window.innerHeight;
  	canwidth.value  = window.innerWidth;
 
  	//SET VALUES
- 	sltype.value    = "range";
- 	id.value        = "levelslider";
- 	attr.value      = "position: fixed; right: 0px; bottom: 0px; background-color: white; z-index: 99999999; border-style: solid; border-radius: 10px; display: flex; flex-direction: row; padding: 5px; border-style: outset; padding: 10px;size: 200px;border-width: 10px; background: #ffffff; background: linear-gradient(135deg, rgba(255, 255, 255, 1) 0%, rgba(212, 212, 212, 1) 100%);border-color: white;"
-	mttrpos.value	= "position: fixed; z-index:999999999999999999999; top: 0px; left: 0px;";
-	mttrid.value	= "mttrcvs";
+	svtype.value		= "checkbox";
+ 	sltype.value    	= "range";
+ 	id.value        	= "levelslider";
+	//pquickstyle.value	= "font-size: 10px;"
+ 	labquick.style		= "font-size: 10px; color: black;"
+	attr.value      	= "position: fixed; right: 0px; bottom: 0px; background-color: white; z-index: 99999999; border-style: solid; border-radius: 10px; display: flex; flex-direction: row; padding: 5px; border-style: outset; padding: 10px;size: 200px;border-width: 10px; background: #ffffff; background: linear-gradient(135deg, rgba(255, 255, 255, 1) 0%, rgba(212, 212, 212, 1) 100%);border-color: white;padding: 20px;"
+	mttrpos.value		= "position: fixed; z-index:999999999999999999999; top: 0px; left: 0px;";
+	mttrid.value		= "mttrcvs";
 	ubuttstyle.value	= "border-radius: 0px; ;background: #ffffff; background: linear-gradient(180deg, rgba(255, 255, 255, 1) 0%, rgba(212, 212, 212, 1) 100%); color: black; border-style: outset; border-color: grey; border-size: 10px; width: 66px; height: 24px;font-size: 10px;"
 	cbuttstyle.value	= ubuttstyle.value;
 
 
  	//SET ATTRIBUTE
+	//pquick.setAttributeNode(pquickstyle)
+	svquick.setAttributeNode(svtype);
  	lcanvas.setAttributeNode(canheight);
  	lcanvas.setAttributeNode(canwidth);
  	slider.setAttributeNode(sltype);
@@ -240,10 +276,14 @@ function levelselector(){
 	unscbutt.setAttributeNode(cbuttstyle);
 
   	//APPENDING DOM ELEMENTS
- 	thing.appendChild(sliderbase);
+	thing.appendChild(sliderbase);
  	cancelbutt.append("Cancel");
  	unscbutt.append("Unscrew");
- 	sliderbase.appendChild(slider);
+	labquick.append(svquick);
+	labquick.append("Save for quick unscrew");
+	sliderbase.appendChild(slider);
+	sliderbase.appendChild(Break);
+	sliderbase.appendChild(labquick);
  	buttonarea.appendChild(unscbutt);
  	buttonarea.appendChild(cancelbutt);
  	sliderbase.appendChild(buttonarea);
@@ -257,6 +297,10 @@ function levelselector(){
  	let ctx = lcanvas.getContext("2d");
  	//ctx.fillRect(100,100,100,100);
 
+	labquick.oninput = function(){
+		if (checked === 0) checked = 1;
+		else checked = 0;
+	}
 
  	slider.oninput = function(){
   		layernm = ((this.value*0.01)*layers.length) | 0;
@@ -265,7 +309,7 @@ function levelselector(){
     		if(layers[layernm].length){
       			for(let i = 0; i < layers[layernm].length; i++){
         			bounds = layers[layernm][i].getBoundingClientRect();
-        			if (!(bounds.height < 5 || bounds.width < 5 || bounds.x < 0 || bounds.y < 0 || bounds.top < 0 || bounds.bottom < 0 || bounds.right < 0 || bounds.left < 0 || bounds.top > window.innerHeight || bounds.left > window.innerWidth) && !isBnd(layers[layernm], i)){
+        			if (!(bounds.height < 5 || bounds.width < 5 || bounds.x < 0 || bounds.y < 0 || bounds.top < 0 || bounds.bottom < 0 || bounds.right < 0 || bounds.left < 0 || bounds.top > window.innerHeight || bounds.left > window.innerWidth)){
           				ctx.strokeRect(bounds.x,bounds.y,bounds.width,bounds.height);
           				ctx.strokeStyle = "red";
         				unsdom.push(layers[layernm][i]);
@@ -277,28 +321,59 @@ function levelselector(){
   	cancelbutt.addEventListener("click", function(){
     		thing.remove();
     		lcanvas.remove();
-    		selectinglvl = 0;
+		selectinglvl = 0;
   	});
 
     unscbutt.addEventListener("click", function(){
       		selectinglvl = 0;   
-   		thing.remove();
+   		if (checked === 1){
+			console.log("saved for quick unscrew! " + layernm);
+			localStorage.setItem("quickUnscrew", JSON.stringify(layernm));
+		}
+	    	checked = 0;
+	    	thing.remove();
    		lcanvas.remove();
   		crtmatter(unsdom);
-	  	layers = []
   	});
 
 }
 
 
 function main(){
+
 	document.addEventListener("keydown",function(event){
-    		if(selectinglvl === 0){
+    		if(selectinglvl === 0 && mttrrunning === 0){
       			if(event.ctrlKey && event.altKey && event.key == 'u'){
           			console.log("iniziated")
           			getelements();
           			levelselector();
           			selectinglvl = 1;
+  	    		}
+      			if(event.ctrlKey && event.altKey && event.key == 'q'){
+          			console.log("initiated quickUnscrew");
+        			getelements();
+				unsdom = [];
+				let mttrcvs	= document.createElement('div');
+				let canheight   = document.createAttribute("height");
+				let canwidth    = document.createAttribute("width");
+				canheight.value = window.innerHeight;
+			 	canwidth.value  = window.innerWidth;
+			  	let mttrpos	= document.createAttribute("style");
+				mttrpos.value	= "position: fixed; z-index:999999999999999999999; top: 0px; left: 0px;";
+				let mttrid 	= document.createAttribute("id");
+				mttrid.value		= "mttrcvs";
+				mttrcvs.setAttributeNode(mttrpos);
+				mttrcvs.setAttributeNode(mttrid);
+				document.body.appendChild(mttrcvs);
+				console.log(layers)
+				layernm = parseInt(localStorage.getItem("quickUnscrew"));
+				for(let i = 0; i < layers[layernm].length; i++){
+        				bounds = layers[layernm][i].getBoundingClientRect();
+        				if (!(bounds.height < 5 || bounds.width < 5 || bounds.x < 0 || bounds.y < 0 || bounds.top < 0 || bounds.bottom < 0 || bounds.right < 0 || bounds.left < 0 || bounds.top > window.innerHeight || bounds.left > window.innerWidth)){
+          					unsdom.push(layers[layernm][i]);
+        				}
+      				}
+				crtmatter(unsdom);
   	    		}
     		}
   	});
