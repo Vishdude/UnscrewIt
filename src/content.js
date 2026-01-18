@@ -20,7 +20,25 @@ let mvDomID;
 let engine, runner, render, mvDomId;
 let phbase;
 let checked = 0;
+let default_level = 	{
+			'https://www.youtube.com/': 15,
+			'https://search.brave.com/search': 10,
+			'https://www.reddit.com/': 12,
+			'https://steamcommunity.com/profiles/': 9,
+			'https://duckduckgo.com/': 11,
+			'https://www.google.com/search': 15
+			}
 
+function getdef(){
+	curl = window.location.href;
+
+	for (let i in default_level){
+		if (curl.startsWith(i)){
+			return default_level[i];
+		}
+	}
+	return null;
+}
 
 function isBnd(DOMS,j){
 	console.log("checking");
@@ -54,16 +72,6 @@ function elPhy() {
   	unsdom.forEach((element) => {
     		let rect = element.getBoundingClientRect();
 		let plHlEl = element.cloneNode(true);
-
-	    	Object.assign(plHlEl.style, {
-      			visibility: "hidden", 
-      			width: `${rect.width}px`,
-      			height: `${rect.height}px`,
-      			margin: getComputedStyle(element).margin,
-		});
-	    	element.replaceWith(plHlEl);
-	
-	
 	    	Object.assign(element.style, {
 	      		position: "fixed",
 	      		margin: "0",
@@ -75,6 +83,18 @@ function elPhy() {
 	      		transformOrigin: "center center",
 		});
 
+
+	    	Object.assign(plHlEl.style, {
+      			visibility: "hidden", 
+      			width: `${rect.width}px`,
+      			height: `${rect.height}px`,
+      			margin: getComputedStyle(element).margin,
+		});
+	    	element.replaceWith(plHlEl);
+	
+	
+
+
  	   	phyBase.appendChild(element);
  	   	element._placeholder = plHlEl;
  	   	phyDom.push(element);
@@ -83,7 +103,6 @@ function elPhy() {
 
 //Matter.js stuffs
 function crtmatter(DOMS){
-
 	const Engine = Matter.Engine,
         Render = Matter.Render,
         Runner = Matter.Runner,
@@ -129,9 +148,6 @@ function crtmatter(DOMS){
         Composite.add(world, [dombox]);
     }
 	elPhy();
-//    for (let i = 0; i < DOMS.length; i++) {
-//        DOMS[i].style.opacity = 0;
-//    }
 
     var mouse = Mouse.create(render.canvas),
         mouseConstraint = MouseConstraint.create(engine, {
@@ -219,6 +235,7 @@ function levelselector(){
 
 	//CREATING ELEMENTS
 	let labquick	= document.createElement('lable');
+	let slvalue	= document.createElement('p');
 	let Break	= document.createElement('br');
 	let lcanvas     = document.createElement('canvas');
 	let thing       = document.createElement('div');
@@ -261,6 +278,7 @@ function levelselector(){
 	mttrid.value		= "mttrcvs";
 	ubuttstyle.value	= "border-radius: 0px; ;background: #ffffff; background: linear-gradient(180deg, rgba(255, 255, 255, 1) 0%, rgba(212, 212, 212, 1) 100%); color: black; border-style: outset; border-color: grey; border-size: 10px; width: 66px; height: 24px;font-size: 10px;"
 	cbuttstyle.value	= ubuttstyle.value;
+	slvalue.style		= "font-size: 10px; color: black; padding: 0px;"
 
 
  	//SET ATTRIBUTE
@@ -276,13 +294,17 @@ function levelselector(){
 	unscbutt.setAttributeNode(cbuttstyle);
 
   	//APPENDING DOM ELEMENTS
+	slvalue.append("Use the slider to select the level.")
 	thing.appendChild(sliderbase);
  	cancelbutt.append("Cancel");
  	unscbutt.append("Unscrew");
+
 	labquick.append(svquick);
 	labquick.append("Save for quick unscrew");
+	sliderbase.appendChild(slvalue);
 	sliderbase.appendChild(slider);
 	sliderbase.appendChild(Break);
+
 	sliderbase.appendChild(labquick);
  	buttonarea.appendChild(unscbutt);
  	buttonarea.appendChild(cancelbutt);
@@ -304,6 +326,7 @@ function levelselector(){
 
  	slider.oninput = function(){
   		layernm = ((this.value*0.01)*layers.length) | 0;
+		slvalue.innerHTML = `Level ${layernm}`;
   		ctx.clearRect(0, 0, lcanvas.width, lcanvas.height);
   		unsdom = [];
     		if(layers[layernm].length){
@@ -320,6 +343,7 @@ function levelselector(){
   	}
   	cancelbutt.addEventListener("click", function(){
     		thing.remove();
+		layers = [];
     		lcanvas.remove();
 		selectinglvl = 0;
   	});
@@ -331,8 +355,10 @@ function levelselector(){
 			localStorage.setItem("quickUnscrew", JSON.stringify(layernm));
 		}
 	    	checked = 0;
+	    	slider.remove();
 	    	thing.remove();
    		lcanvas.remove();
+	    	layers = [];
   		crtmatter(unsdom);
   	});
 
@@ -344,13 +370,15 @@ function main(){
 	document.addEventListener("keydown",function(event){
     		if(selectinglvl === 0 && mttrrunning === 0){
       			if(event.ctrlKey && event.altKey && event.key == 'u'){
-          			console.log("iniziated")
+          			console.log("iniziated");
+				layers = [];
           			getelements();
           			levelselector();
           			selectinglvl = 1;
   	    		}
       			if(event.ctrlKey && event.altKey && event.key == 'q'){
-          			console.log("initiated quickUnscrew");
+				console.log("initiated quickUnscrew");
+				layers = [];
         			getelements();
 				unsdom = [];
 				let mttrcvs	= document.createElement('div');
@@ -361,15 +389,22 @@ function main(){
 			  	let mttrpos	= document.createAttribute("style");
 				mttrpos.value	= "position: fixed; z-index:999999999999999999999; top: 0px; left: 0px;";
 				let mttrid 	= document.createAttribute("id");
-				mttrid.value		= "mttrcvs";
+				mttrid.value	= "mttrcvs";
 				mttrcvs.setAttributeNode(mttrpos);
 				mttrcvs.setAttributeNode(mttrid);
 				document.body.appendChild(mttrcvs);
 				console.log(layers)
-				layernm = parseInt(localStorage.getItem("quickUnscrew"));
+				if (!(localStorage.getItem("quickUnscrew") === null)){
+					console.log("Quick Unscrew exists")
+					layernm = parseInt(localStorage.getItem("quickUnscrew"));
+				}
+				else{
+					layernm = getdef();
+					console.log(layernm);
+				}
 				for(let i = 0; i < layers[layernm].length; i++){
         				bounds = layers[layernm][i].getBoundingClientRect();
-        				if (!(bounds.height < 5 || bounds.width < 5 || bounds.x < 0 || bounds.y < 0 || bounds.top < 0 || bounds.bottom < 0 || bounds.right < 0 || bounds.left < 0 || bounds.top > window.innerHeight || bounds.left > window.innerWidth)){
+        				if (!(bounds.height < 5 || bounds.width < 5 || bounds.x < 0 || bounds.y < 0 || bounds.top < 0 || bounds.bottom < 0 || bounds.right < 0 || bounds.left < 0 || bounds.top > window.innerHeight || bounds.left > window.innerWidth || bounds.width+bounds.x - (bounds.width+bounds.x)*0.50 > window.innerWidth || bounds.height+bounds.y - (bounds.height+bounds.y)*0.50 > window.innerHeight)){
           					unsdom.push(layers[layernm][i]);
         				}
       				}
