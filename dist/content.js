@@ -5124,6 +5124,8 @@ var import_matter_wrap = __toESM(require_matter_wrap());
 var domlist = [];
 var queue = [];
 var layers = [];
+var prntEls = [];
+var plHlEls = [];
 var n = 0;
 var layernm = 0;
 var selectinglvl = 0;
@@ -5136,39 +5138,61 @@ var engine;
 var runner;
 var render;
 var mvDomId;
-var phbase;
-function isBnd(DOMS, j) {
-  console.log("checking");
-  let bounds2 = DOMS[j].getBoundingClientRect();
-  for (let i = 0; i < DOMS.length; i++) {
-    let tarbound = DOMS[i].getBoundingClientRect();
-    if (tarbound.x > bounds2.x && tarbound.y > bounds2.y && tarbound.x < bounds2.x + bounds2.width && tarbound.y < bounds2.y + bounds2.height) {
-      console.log(`(${tarbound.x},${tarbound.y}) is around (${bounds2.x},${bounds2.y})x(${bounds2.x + bounds2.width}, ${bounds2.y + bounds2.height})`);
-      return true;
+var checked = 0;
+var default_level = {
+  "https://www.youtube.com/": 15,
+  "https://search.brave.com/search": 10,
+  "https://www.reddit.com/": 12,
+  "https://steamcommunity.com/profiles/": 9,
+  "https://duckduckgo.com/": 11,
+  "https://www.google.com/search": 15
+};
+function getdef() {
+  curl = window.location.href;
+  for (let i in default_level) {
+    if (curl.startsWith(i)) {
+      return default_level[i];
     }
   }
-  return false;
+  return null;
+}
+function rtrnEls() {
+  phyDom.forEach((element) => {
+    const placeholder = element._placeholder;
+    if (placeholder && placeholder.parentNode) {
+      element.style = "";
+      placeholder.replaceWith(element);
+    }
+  });
 }
 function elPhy() {
   let phyBase = document.createElement("div");
-  phyBase.style = "position:fixed; top:0; left:0; pointer-events:none; z-index: 99999999;";
+  phyBase.style = "position:fixed; top:0; left:0; width:100vw; height:100vh; pointer-events:none; z-index: 999999;";
+  document.body.appendChild(phyBase);
   unsdom.forEach((element) => {
     let rect = element.getBoundingClientRect();
-    let phyEl = element.cloneNode(true);
-    Object.assign(phyEl.style, {
+    let plHlEl = element.cloneNode(true);
+    Object.assign(element.style, {
       position: "fixed",
       margin: "0",
-      top: "0",
-      left: "0",
+      top: `0px`,
+      left: `0px`,
       width: `${rect.width}px`,
       height: `${rect.height}px`,
+      zIndex: "1000",
       transformOrigin: "center center"
     });
-    phyBase.appendChild(phyEl);
-    phyDom.push(phyEl);
+    Object.assign(plHlEl.style, {
+      visibility: "hidden",
+      width: `${rect.width}px`,
+      height: `${rect.height}px`,
+      margin: getComputedStyle(element).margin
+    });
+    element.replaceWith(plHlEl);
+    phyBase.appendChild(element);
+    element._placeholder = plHlEl;
+    phyDom.push(element);
   });
-  phbase = phyBase;
-  document.body.appendChild(phyBase);
 }
 function crtmatter(DOMS) {
   const Engine = import_matter_js.default.Engine, Render = import_matter_js.default.Render, Runner = import_matter_js.default.Runner, Bodies = import_matter_js.default.Bodies, World = import_matter_js.default.World, Composite = import_matter_js.default.Composite, MouseConstraint = import_matter_js.default.MouseConstraint, Mouse = import_matter_js.default.Mouse;
@@ -5188,7 +5212,6 @@ function crtmatter(DOMS) {
   import_matter_js.default.use("matter-wrap");
   const ground = Bodies.rectangle(window.innerWidth / 2, window.innerHeight + 25, window.innerWidth + 600, 60, { isStatic: true });
   Composite.add(world, [ground]);
-  elPhy();
   for (let i = 0; i < DOMS.length; i++) {
     let bounds2 = DOMS[i].getBoundingClientRect();
     let dombox = Bodies.rectangle(bounds2.x + bounds2.width / 2, bounds2.y + bounds2.height / 2, bounds2.width, bounds2.height, {
@@ -5203,9 +5226,7 @@ function crtmatter(DOMS) {
     mttrEls.push(dombox);
     Composite.add(world, [dombox]);
   }
-  for (let i = 0; i < DOMS.length; i++) {
-    DOMS[i].style.opacity = 0;
-  }
+  elPhy();
   var mouse = Mouse.create(render.canvas), mouseConstraint = MouseConstraint.create(engine, {
     mouse,
     constraint: {
@@ -5234,6 +5255,7 @@ document.addEventListener("keydown", (event) => {
     if (mttrrunning === 1) {
       cancelAnimationFrame(mvDomId);
       mttrrunning = 0;
+      rtrnEls();
       if (runner) import_matter_js.default.Runner.stop(runner);
       if (render) {
         import_matter_js.default.Render.stop(render);
@@ -5245,10 +5267,10 @@ document.addEventListener("keydown", (event) => {
       }
       document.querySelector("#mttrcvs")?.remove();
       document.querySelector("#phyBaseWrapper")?.remove();
-      phbase.remove();
-      unsdom.forEach((el) => el.style.opacity = "");
       phyDom = [];
       mttrEls = [];
+      prntEls = [];
+      plHlEls = [];
       console.log("Cleanup complete.");
     }
   }
@@ -5276,6 +5298,9 @@ function getelements() {
 function levelselector() {
   let elementcount = domlist.length;
   let middlelayer = layers.length * 0.5 | 0;
+  let labquick = document.createElement("lable");
+  let slvalue = document.createElement("p");
+  let Break = document.createElement("br");
   let lcanvas = document.createElement("canvas");
   let thing = document.createElement("div");
   let sliderbase = document.createElement("div");
@@ -5285,6 +5310,7 @@ function levelselector() {
   let mttrcvs = document.createElement("div");
   let buttonarea = document.createElement("div");
   let progressbar = document.createElement("progress");
+  let svquick = document.createElement("input");
   let sltype = document.createAttribute("type");
   let id = document.createAttribute("id");
   let canheight = document.createAttribute("height");
@@ -5296,15 +5322,20 @@ function levelselector() {
   let cbuttstyle = document.createAttribute("style");
   let prgmax = document.createAttribute("max");
   let prgval = document.createAttribute("value");
+  let svtype = document.createAttribute("type");
   canheight.value = window.innerHeight;
   canwidth.value = window.innerWidth;
+  svtype.value = "checkbox";
   sltype.value = "range";
   id.value = "levelslider";
-  attr.value = "position: fixed; right: 0px; bottom: 0px; background-color: white; z-index: 99999999; border-style: solid; border-radius: 10px; display: flex; flex-direction: row; padding: 5px; border-style: outset; padding: 10px;size: 200px;border-width: 10px; background: #ffffff; background: linear-gradient(135deg, rgba(255, 255, 255, 1) 0%, rgba(212, 212, 212, 1) 100%);border-color: white;";
+  labquick.style = "font-size: 10px; color: black;";
+  attr.value = "position: fixed; right: 0px; bottom: 0px; background-color: white; z-index: 99999999; border-style: solid; border-radius: 10px; display: flex; flex-direction: row; padding: 5px; border-style: outset; padding: 10px;size: 200px;border-width: 10px; background: #ffffff; background: linear-gradient(135deg, rgba(255, 255, 255, 1) 0%, rgba(212, 212, 212, 1) 100%);border-color: white;padding: 20px;";
   mttrpos.value = "position: fixed; z-index:999999999999999999999; top: 0px; left: 0px;";
   mttrid.value = "mttrcvs";
   ubuttstyle.value = "border-radius: 0px; ;background: #ffffff; background: linear-gradient(180deg, rgba(255, 255, 255, 1) 0%, rgba(212, 212, 212, 1) 100%); color: black; border-style: outset; border-color: grey; border-size: 10px; width: 66px; height: 24px;font-size: 10px;";
   cbuttstyle.value = ubuttstyle.value;
+  slvalue.style = "font-size: 10px; color: black; padding: 0px;";
+  svquick.setAttributeNode(svtype);
   lcanvas.setAttributeNode(canheight);
   lcanvas.setAttributeNode(canwidth);
   slider.setAttributeNode(sltype);
@@ -5313,10 +5344,16 @@ function levelselector() {
   thing.setAttributeNode(attr);
   cancelbutt.setAttributeNode(ubuttstyle);
   unscbutt.setAttributeNode(cbuttstyle);
+  slvalue.append("Use the slider to select the level.");
   thing.appendChild(sliderbase);
   cancelbutt.append("Cancel");
   unscbutt.append("Unscrew");
+  labquick.append(svquick);
+  labquick.append("Save for quick unscrew");
+  sliderbase.appendChild(slvalue);
   sliderbase.appendChild(slider);
+  sliderbase.appendChild(Break);
+  sliderbase.appendChild(labquick);
   buttonarea.appendChild(unscbutt);
   buttonarea.appendChild(cancelbutt);
   sliderbase.appendChild(buttonarea);
@@ -5327,14 +5364,19 @@ function levelselector() {
   document.body.appendChild(lcanvas);
   console.log(layers);
   let ctx = lcanvas.getContext("2d");
+  labquick.oninput = function() {
+    if (checked === 0) checked = 1;
+    else checked = 0;
+  };
   slider.oninput = function() {
     layernm = this.value * 0.01 * layers.length | 0;
+    slvalue.innerHTML = `Level ${layernm}`;
     ctx.clearRect(0, 0, lcanvas.width, lcanvas.height);
     unsdom = [];
     if (layers[layernm].length) {
       for (let i = 0; i < layers[layernm].length; i++) {
         bounds = layers[layernm][i].getBoundingClientRect();
-        if (!(bounds.height < 5 || bounds.width < 5 || bounds.x < 0 || bounds.y < 0 || bounds.top < 0 || bounds.bottom < 0 || bounds.right < 0 || bounds.left < 0 || bounds.top > window.innerHeight || bounds.left > window.innerWidth) && !isBnd(layers[layernm], i)) {
+        if (!(bounds.height < 5 || bounds.width < 5 || bounds.x < 0 || bounds.y < 0 || bounds.top < 0 || bounds.bottom < 0 || bounds.right < 0 || bounds.left < 0 || bounds.top > window.innerHeight || bounds.left > window.innerWidth)) {
           ctx.strokeRect(bounds.x, bounds.y, bounds.width, bounds.height);
           ctx.strokeStyle = "red";
           unsdom.push(layers[layernm][i]);
@@ -5344,25 +5386,66 @@ function levelselector() {
   };
   cancelbutt.addEventListener("click", function() {
     thing.remove();
+    layers = [];
     lcanvas.remove();
     selectinglvl = 0;
   });
   unscbutt.addEventListener("click", function() {
     selectinglvl = 0;
+    if (checked === 1) {
+      console.log("saved for quick unscrew! " + layernm);
+      localStorage.setItem("quickUnscrew", JSON.stringify(layernm));
+    }
+    checked = 0;
+    slider.remove();
     thing.remove();
     lcanvas.remove();
-    crtmatter(unsdom);
     layers = [];
+    crtmatter(unsdom);
   });
 }
 function main() {
   document.addEventListener("keydown", function(event) {
-    if (selectinglvl === 0) {
+    if (selectinglvl === 0 && mttrrunning === 0) {
       if (event.ctrlKey && event.altKey && event.key == "u") {
         console.log("iniziated");
+        layers = [];
         getelements();
         levelselector();
         selectinglvl = 1;
+      }
+      if (event.ctrlKey && event.altKey && event.key == "q") {
+        console.log("initiated quickUnscrew");
+        layers = [];
+        getelements();
+        unsdom = [];
+        let mttrcvs = document.createElement("div");
+        let canheight = document.createAttribute("height");
+        let canwidth = document.createAttribute("width");
+        canheight.value = window.innerHeight;
+        canwidth.value = window.innerWidth;
+        let mttrpos = document.createAttribute("style");
+        mttrpos.value = "position: fixed; z-index:999999999999999999999; top: 0px; left: 0px;";
+        let mttrid = document.createAttribute("id");
+        mttrid.value = "mttrcvs";
+        mttrcvs.setAttributeNode(mttrpos);
+        mttrcvs.setAttributeNode(mttrid);
+        document.body.appendChild(mttrcvs);
+        console.log(layers);
+        if (!(localStorage.getItem("quickUnscrew") === null)) {
+          console.log("Quick Unscrew exists");
+          layernm = parseInt(localStorage.getItem("quickUnscrew"));
+        } else {
+          layernm = getdef();
+          console.log(layernm);
+        }
+        for (let i = 0; i < layers[layernm].length; i++) {
+          bounds = layers[layernm][i].getBoundingClientRect();
+          if (!(bounds.height < 5 || bounds.width < 5 || bounds.x < 0 || bounds.y < 0 || bounds.top < 0 || bounds.bottom < 0 || bounds.right < 0 || bounds.left < 0 || bounds.top > window.innerHeight || bounds.left > window.innerWidth || bounds.width + bounds.x - (bounds.width + bounds.x) * 0.5 > window.innerWidth || bounds.height + bounds.y - (bounds.height + bounds.y) * 0.5 > window.innerHeight)) {
+            unsdom.push(layers[layernm][i]);
+          }
+        }
+        crtmatter(unsdom);
       }
     }
   });
